@@ -1,4 +1,5 @@
 import logging
+import os
 from typing import Any, Dict, List, Optional
 
 from utils import format_api_params
@@ -291,7 +292,8 @@ class RecipeMixin:
         Args:
             slug: The slug identifier of the recipe
             image_data: Binary image data
-            filename: Name of the image file
+            filename: Name of the image file; its suffix supplies the extension
+                Mealie requires
 
         Returns:
             JSON response confirming the image was uploaded
@@ -303,10 +305,19 @@ class RecipeMixin:
         if not filename:
             raise ValueError("Filename cannot be empty")
 
+        # Mealie requires the extension as its own form field; without it the
+        # endpoint rejects the upload with 422 "extension: Field required".
+        extension = os.path.splitext(filename)[1].lstrip(".").lower()
+        if not extension:
+            raise ValueError(f"Cannot determine the image extension from: {filename}")
+
         files = {"image": (filename, image_data)}
+        data = {"extension": extension}
 
         logger.info({"message": "Uploading recipe image", "slug": slug, "filename": filename})
-        return self._handle_request("PUT", f"/api/recipes/{slug}/image", files=files)
+        return self._handle_request(
+            "PUT", f"/api/recipes/{slug}/image", files=files, data=data
+        )
 
     def upload_recipe_asset(self, slug: str, asset_data: bytes, filename: str) -> Dict[str, Any]:
         """Upload a recipe asset file (multipart upload)

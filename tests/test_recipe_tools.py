@@ -1,6 +1,8 @@
 """Tests for the recipe-authoring tools (structured ingredients, full create,
 patch fields, concise output)."""
 
+import pytest
+
 
 async def test_create_recipe_accepts_flat_and_structured(invoke, fetcher):
     await invoke(
@@ -105,6 +107,30 @@ async def test_patch_recipe_maps_all_fields(invoke, fetcher):
         "tags": [{"id": "t1", "name": "Quick", "slug": "quick"}],
         "tools": [{"id": "k1", "name": "Pfanne", "slug": "pfanne"}],
     }
+
+
+async def test_upload_recipe_image_sends_extension(invoke, fetcher, tmp_path):
+    image = tmp_path / "Photo.PNG"
+    image.write_bytes(b"\x89PNG\r\n\x1a\n")
+
+    await invoke("upload_recipe_image_file", slug="test-recipe", image_path=str(image))
+
+    req = fetcher.last("PUT", "/image")
+    # Mealie rejects the upload with 422 when the extension field is missing
+    assert req["data"] == {"extension": "png"}
+    assert req["files"]["image"][0] == "Photo.PNG"
+
+
+async def test_upload_recipe_image_rejects_extensionless_filename(invoke, tmp_path):
+    from mcp.server.fastmcp.exceptions import ToolError
+
+    image = tmp_path / "photo"
+    image.write_bytes(b"\x89PNG\r\n\x1a\n")
+
+    with pytest.raises(ToolError, match="extension"):
+        await invoke(
+            "upload_recipe_image_file", slug="test-recipe", image_path=str(image)
+        )
 
 
 async def test_get_recipe_concise_includes_orgurl_tags_tools(invoke, fetcher):

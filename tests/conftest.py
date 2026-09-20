@@ -51,6 +51,8 @@ class FakeFetcher(MealieFetcher):
                 "url": url,
                 "json": kwargs.get("json"),
                 "params": kwargs.get("params"),
+                "files": kwargs.get("files"),
+                "data": kwargs.get("data"),
             }
         )
         if method == "POST" and url == "/api/recipes":
